@@ -1,0 +1,3 @@
+COMPONENT_ADD_INCLUDEDIRS = src
+COMPONENT_SRCDIRS = src
+COMPONENT_DEPENDS = esp_driver_gpio esp_timer
