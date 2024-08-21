@@ -1,0 +1,39 @@
+#pragma once
+
+#include "esp-idf-tm1637.h"
+#include "driver/gpio.h"
+
+#define DEBUG
+
+#define DEBUG_START GPIO_NUM_4
+#define DEBUG_ACK GPIO_NUM_5
+#define DEBUG_STOP GPIO_NUM_6
+#define DEBUG_WRITE GPIO_NUM_7
+
+
+#define LOW     0
+#define HIGH    1
+
+#define DELAY_10MHZ 50
+
+#define DELAY   1 * DELAY_10MHZ
+#define DELAY_A 2 * DELAY_10MHZ
+#define DELAY_B 3 * DELAY_10MHZ
+#define DELAY_C 5 * DELAY_10MHZ
+
+typedef struct tm1637pins_t {
+    gpio_num_t      clock;
+    gpio_num_t      data;
+} tm1637pins_t;
+
+
+void tmInit(tm1637pins_t pins);
+void SmgDisplay(tm1637pins_t pins);
+
+void delay(int µs);
+void start(tm1637pins_t pins);
+void ack(tm1637pins_t pins);
+void stop(tm1637pins_t pins);
+void wrByte(tm1637pins_t pins, uint8_t data);
+void tmWriteByte(tm1637pins_t pins, uint8_t data);
+

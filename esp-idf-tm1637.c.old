@@ -1,0 +1,164 @@
+#include <stdio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include "esp-idf-tm1637.h"
+#include <rom/ets_sys.h>
+
+#include "esp_log.h"
+
+
+static const char* TAG = "esp-idf-tm1637";
+
+// void delay(int microsec);
+// void start(tm1637pins_t pins);
+// void ack(tm1637pins_t pins);
+// void stop(tm1637pins_t pins);
+// void wrByte(tm1637pins_t pins, uint8_t data);
+// void SmgDisplay(tm1637pins_t pins);
+
+
+void delay(int microsec) {
+    ets_delay_us(microsec);
+}
+
+void tmInit(tm1637pins_t pins) {
+    ESP_LOGD(TAG, "Setting Pin %i as CLK\tSetting Pin %i as DIO", pins.clock, pins.data);
+    gpio_set_direction(pins.clock, GPIO_MODE_OUTPUT);
+    gpio_set_direction(pins.data, GPIO_MODE_OUTPUT);
+#ifdef DEBUG
+    gpio_set_direction(DEBUG_START, GPIO_MODE_OUTPUT);
+    gpio_set_direction(DEBUG_ACK, GPIO_MODE_OUTPUT);
+    gpio_set_direction(DEBUG_STOP, GPIO_MODE_OUTPUT);
+    gpio_set_direction(DEBUG_WRITE, GPIO_MODE_OUTPUT);
+    gpio_set_level(DEBUG_START, LOW);
+    gpio_set_level(DEBUG_ACK, LOW);
+    gpio_set_level(DEBUG_STOP, LOW);
+    gpio_set_level(DEBUG_WRITE, LOW);
+
+    gpio_set_level(pins.clock, HIGH);
+    gpio_set_level(pins.data, HIGH);
+    delay(DELAY_10MHZ);
+    gpio_set_level(pins.clock, LOW);
+    gpio_set_level(pins.data, LOW);
+    delay(DELAY_10MHZ);
+    gpio_set_level(pins.clock, HIGH);
+    gpio_set_level(pins.data, HIGH);
+    delay(DELAY_10MHZ);
+#endif
+    gpio_set_level(pins.clock, LOW);
+    gpio_set_level(pins.data, LOW);
+    
+}
+
+void start(tm1637pins_t pins) {
+#ifdef DEBUG
+    gpio_set_level(DEBUG_START, HIGH);
+#endif
+    gpio_set_level(pins.clock, HIGH);
+    delay(DELAY);
+    gpio_set_level(pins.data, HIGH);
+    delay(DELAY_A);
+    gpio_set_level(pins.data, LOW);
+    delay(DELAY);
+#ifdef DEBUG
+    gpio_set_level(DEBUG_START, LOW);
+#endif
+}
+
+void ack(tm1637pins_t pins) {
+#ifdef DEBUG
+    gpio_set_level(DEBUG_ACK, HIGH);
+#endif
+
+    gpio_set_level(pins.clock, LOW);
+    // delay(DELAY);
+    gpio_set_direction(pins.data, GPIO_MODE_INPUT);
+    delay(DELAY_C);
+    int ACK = gpio_get_level(pins.data);
+    // while(gpio_get_level(pins.data) == 1) {
+        gpio_set_level(pins.clock, HIGH);
+        delay(DELAY_A);
+        gpio_set_level(pins.clock, LOW);
+    // }
+
+    gpio_set_direction(pins.data, GPIO_MODE_OUTPUT);
+#ifdef DEBUG
+    gpio_set_level(DEBUG_ACK, LOW);
+#endif
+
+}
+
+void stop(tm1637pins_t pins) {
+#ifdef DEBUG
+    gpio_set_level(DEBUG_STOP, HIGH);
+#endif
+    gpio_set_level(pins.clock, LOW);
+    delay(DELAY_A);
+    gpio_set_level(pins.data, LOW);
+    delay(DELAY_A);
+    gpio_set_level(pins.clock, HIGH);
+    delay(DELAY_A);
+    gpio_set_level(pins.data, HIGH);
+#ifdef DEBUG
+    gpio_set_level(DEBUG_STOP, LOW);
+#endif
+
+}
+
+void wrByte(tm1637pins_t pins, uint8_t data) {
+#ifdef DEBUG
+    gpio_set_level(DEBUG_WRITE, HIGH);
+#endif
+
+    ESP_LOGD(TAG, "Writing byte: %02X", data);
+    gpio_set_level(pins.data, LOW);
+    delay(DELAY);
+    for (uint8_t i = 0; i <8; i++) {
+        gpio_set_level(pins.clock, LOW);
+            delay(DELAY);
+        if (data & 0x01) { // low front
+            gpio_set_level(pins.data, HIGH);
+        }
+        else {
+            gpio_set_level(pins.data, LOW);
+        }
+        delay(DELAY_B);
+        data = data >> 1;
+        gpio_set_level(pins.clock, HIGH);
+        delay(DELAY_B);
+    }
+    
+
+#ifdef DEBUG
+    gpio_set_level(DEBUG_WRITE, LOW);
+#endif
+
+}
+
+
+void SmgDisplay(tm1637pins_t pins) { // Write display register
+    start(pins);
+    wrByte(pins, 0x40); //40H address is automatically incremented by 1 mode,44H fixed address mode
+    ack(pins);
+    stop(pins);
+    start(pins);
+    wrByte(pins, 0xc0); // Set the first address
+    ack(pins);
+    for(uint8_t i=0;i<6;i++) { // Addresses from Canada, do not always write address
+        wrByte(pins, 0xff); // Send data
+        // wrByte(pins, 0x55); // Send data
+        ack(pins);
+    }
+    stop(pins);
+    start(pins);
+    wrByte(pins, 0x8f); // Open display, maximum brightness
+    ack(pins);
+    stop(pins);
+} 
+
+
+void tmWriteByte(tm1637pins_t pins, uint8_t data) {
+    start(pins);
+    wrByte(pins, data); 
+    ack(pins);
+}
